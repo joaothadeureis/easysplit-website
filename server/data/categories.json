@@ -1,0 +1,20 @@
+[
+  {
+    "id": 1,
+    "name": "CRO",
+    "slug": "cro",
+    "count": 0
+  },
+  {
+    "id": 2,
+    "name": "WordPress",
+    "slug": "wordpress",
+    "count": 0
+  },
+  {
+    "id": 3,
+    "name": "Tráfego Pago",
+    "slug": "trafego-pago",
+    "count": 0
+  }
+]

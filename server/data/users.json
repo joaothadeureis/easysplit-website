@@ -1,0 +1,10 @@
+[
+  {
+    "id": 1,
+    "username": "admin",
+    "password": "$2a$10$Id2Fi65f0/oZ.n6LMqj0DeTpFTyUVxOBl5kia3YOVKLwZMXcxichm",
+    "name": "Administrador",
+    "email": "admin@easysplit.com.br",
+    "role": "administrator"
+  }
+]

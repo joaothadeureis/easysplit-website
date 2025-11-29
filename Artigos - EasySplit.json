@@ -1,0 +1,721 @@
+{
+  "name": "Artigos - EasySplit",
+  "nodes": [
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "cdbe185f-fda0-4d47-a7ea-16b0d945ebd3",
+              "leftValue": "={{$json.needs_new_angle}}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c19bffc9-f5dd-4055-9995-00fae0a5a46b",
+      "name": "5) IF slug duplicado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -480,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [],
+          "number": [
+            {
+              "value1": "={{$json.needs_new_angle ? 1 : 0}}",
+              "operation": "smaller",
+              "value2": 1
+            }
+          ],
+          "string": []
+        },
+        "options": {}
+      },
+      "id": "3864138b-518b-4545-8d22-13cc6b2c08df",
+      "name": "5c) Prosseguir?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        464,
+        -144
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "429f873b-9a71-46b8-b39d-3787a116f3f1",
+      "name": "7) Flag — Gerar Rascunho?",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [
+        688,
+        -128
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [],
+          "number": [],
+          "string": [
+            {
+              "value1": "={{$json.GENERATE_DRAFT}}",
+              "operation": "contains",
+              "value2": "true"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "8159e62f-cd09-4516-b15b-406426ed87ed",
+      "name": "8) IF gerar rascunho?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1136,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtDay": [
+                3,
+                1
+              ],
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -2000,
+        96
+      ],
+      "id": "0a94c4fc-313e-40c1-a647-c019849bb564",
+      "name": "0) Agendar (semanal, seg, qua, sex 09:00)"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "SUBSTITUA_PELO_ID_DA_SUA_PLANILHA_GOOGLE_SHEETS",
+          "mode": "list",
+          "cachedResultName": "[Keywords Search Console - EasySplit]",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/SUBSTITUA_PELO_ID_DA_SUA_PLANILHA_GOOGLE_SHEETS/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "SUBSTITUA_PELO_GID_DA_ABA",
+          "mode": "list",
+          "cachedResultName": "EasySplit",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/SUBSTITUA_PELO_ID_DA_SUA_PLANILHA_GOOGLE_SHEETS/edit#gid=SUBSTITUA_PELO_GID_DA_ABA"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -1600,
+        240
+      ],
+      "id": "921c2fd0-259f-4887-bc35-9a118260fa44",
+      "name": "1) Ler Planilha (keywords + histórico)",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "SUBSTITUA_PELO_ID_DA_CREDENCIAL",
+          "name": "Google Sheets - Sua Conta"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Score & Filtro para planilha do Search Console + histórico\n * keyword | Cliques | Impressões | CTR | Posição | last_used_keyword_at | topic_title | topic_slug | last_used_topic_at\n */\n\nconst NOW = new Date();\n\n// ---------- helpers ----------\nfunction pick(obj, candidates) {\n  for (const k of candidates) if (Object.prototype.hasOwnProperty.call(obj, k)) return obj[k];\n  return undefined;\n}\nfunction toNum(v) {\n  if (v === null || v === undefined) return 0;\n  if (typeof v === 'number') return isFinite(v) ? v : 0;\n  if (typeof v !== 'string') return Number(v) || 0;\n  const s = v.replace(/\\s/g, '').replace(',', '.').replace('%','');\n  const n = Number(s);\n  return isNaN(n) ? 0 : n;\n}\nfunction parseDateLoose(v) {\n  if (!v) return null;\n  if (v instanceof Date) return isNaN(v.getTime()) ? null : v;\n  const iso = Date.parse(v);\n  if (!isNaN(iso)) return new Date(iso);\n  let m = String(v).match(/^(\\d{1,2})[\\/\\-.](\\d{1,2})[\\/\\-.](\\d{2,4})$/);\n  if (m) {\n    const d = +m[1], mo = +m[2]-1; let y = +m[3]; if (y < 100) y += 2000;\n    const dt = new Date(y, mo, d); return isNaN(dt.getTime()) ? null : dt;\n  }\n  m = String(v).match(/^(\\d{1,2})[\\/\\-.](\\d{1,2})$/);\n  if (m) {\n    const d = +m[1], mo = +m[2]-1, y = NOW.getFullYear();\n    const dt = new Date(y, mo, d); return isNaN(dt.getTime()) ? null : dt;\n  }\n  return null;\n}\n\n// ---------- pesos (performance-first) ----------\nconst W = {\n  W_CLICKS: toNum($json.W_CLICKS) || 1.5,\n  W_IMPR:   toNum($json.W_IMPR)   || 0.02,\n  W_CTR:    toNum($json.W_CTR)    || 1.0,\n  W_POS:    toNum($json.W_POS)    || 3.0,\n  POS_CAP:  toNum($json.POS_CAP)  || 20\n};\n\n// ---------- mapeamento de campos ----------\nconst F = {\n  keyword: ['keyword'],\n  clicks: ['Cliques','Clicks','cliques'],\n  impressions: ['Impressões','Impressoes','impressions'],\n  ctr: ['CTR','ctr'],\n  position: ['Posição','Posicao','position'],\n  lastUsedKw: ['last_used_keyword_at','last_used_keyw'],\n  topicSlug: ['topic_slug'],\n  lastUsedTopic: ['last_used_topic_at']\n};\n\n// ---------- normalização das linhas ----------\nconst rows = (items || [])\n  .map(i => i.json)\n  .filter(r => {\n    const kw = pick(r, F.keyword);\n    return typeof kw === 'string' && kw.trim().length > 0;\n  });\n\n// ---------- slugs proibidos: últimos 15 ----------\nconst recentTopics = rows\n  .filter(r => pick(r, F.topicSlug))\n  .sort((a,b) => {\n    const da = parseDateLoose(pick(a, F.lastUsedTopic));\n    const db = parseDateLoose(pick(b, F.lastUsedTopic));\n    return (db?.getTime() || 0) - (da?.getTime() || 0);\n  })\n  .slice(0, 15);\n\nconst forbiddenSlugs = new Set(\n  recentTopics.map(r => String(pick(r, F.topicSlug)).trim().toLowerCase()).filter(Boolean)\n);\n\n// ---------- scoring ----------\nfunction toSafePos(v) {\n  const p = toNum(v);\n  return (p && p > 0) ? p : 9999;\n}\n\nfunction readRow(r) {\n  return {\n    kw: String(pick(r, F.keyword) || '').trim(),\n    clicks: toNum(pick(r, F.clicks)),\n    impr: toNum(pick(r, F.impressions)),\n    ctr: toNum(pick(r, F.ctr)),\n    pos: toSafePos(pick(r, F.position)),\n    lastUsed: parseDateLoose(pick(r, F.lastUsedKw)),\n    raw: r,\n  };\n}\n\nconst all = rows.map(readRow).filter(x => x.kw);\nconst unused = all.filter(x => !x.lastUsed);\nconst base = unused.length ? unused : all;\n\nconst MIN_CLICKS = toNum($json.MIN_CLICKS) || 0;\nconst MIN_IMPR   = toNum($json.MIN_IMPR)   || 10;\n\nfunction applyMinFilter(arr) {\n  return arr.filter(x => (x.clicks >= MIN_CLICKS) && (x.impr >= MIN_IMPR));\n}\n\nlet cand = applyMinFilter(base);\nif (cand.length === 0) {\n  cand = base.slice();\n}\n\nconst byKw = new Map();\nfor (const x of cand) {\n  const cur = byKw.get(x.kw);\n  if (!cur) {\n    byKw.set(x.kw, x);\n  } else {\n    const a = cur, b = x;\n    const cmp =\n      (b.clicks - a.clicks) ||\n      (b.impr   - a.impr)   ||\n      (a.pos    - b.pos)    ||\n      (b.ctr    - a.ctr)    ||\n      (a.kw.localeCompare(b.kw));\n    if (cmp > 0) byKw.set(x.kw, x);\n  }\n}\n\nconst ranked = [...byKw.values()].sort((a, b) =>\n  (b.clicks - a.clicks) ||\n  (b.impr   - a.impr)   ||\n  (a.pos    - b.pos)    ||\n  (b.ctr    - a.ctr)    ||\n  (a.kw.localeCompare(b.kw))\n);\n\nif (ranked.length === 0) {\n  const fallback = all[0];\n  if (!fallback) {\n    return [{ json: { error: 'Nenhuma keyword válida encontrada.' } }];\n  }\n  return [{\n    json: {\n      picked_client: 'EasySplit',\n      picked_keyword: fallback.kw,\n      clicks: fallback.clicks,\n      impressions: fallback.impr,\n      ctr: fallback.ctr,\n      position: fallback.pos,\n      last_used_keyword_at: pick(fallback.raw, F.lastUsedKw) || null,\n      forbidden_slugs: [...forbiddenSlugs],\n      note: 'fallback_primeira_linha'\n    }\n  }];\n}\n\nconst pickedRow = ranked[0];\nreturn [{\n  json: {\n    picked_client: 'EasySplit',\n    picked_keyword: pickedRow.kw,\n    clicks: pickedRow.clicks,\n    impressions: pickedRow.impr,\n    ctr: pickedRow.ctr,\n    position: pickedRow.pos,\n    last_used_keyword_at: pick(pickedRow.raw, F.lastUsedKw) || null,\n    forbidden_slugs: [...forbiddenSlugs]\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1344,
+        240
+      ],
+      "id": "1a69fbda-9efe-46be-be07-9704036f0b01",
+      "name": "2) Score & Filtro (escolher keyword/tema)"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1-MINI"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "Você é um editor SEO para blog focado em finanças pessoais, divisão de despesas e apps de gestão financeira. Gere um objeto JSON com:\n- h1 (um título claro e atrativo)\n- titles (array com 5 variações de título SEO)\n- slug_sugerido (kebab-case, curto e sem stopwords)\nRestrições:\n- Use a keyword principal como foco sem forçar repetição.\n- NÃO repita ângulos/tópicos presentes em forbidden_slugs (receberá a lista).\n- Linguagem informativa, persuasiva, sem clickbait exagerado.\n- LGPD: não inclua dados sensíveis.\nResponda SOMENTE JSON.\n",
+              "role": "system"
+            },
+            {
+              "content": "={\n  \"keyword\": \"{{ $json.picked_keyword }}\",\n  \"forbidden_slugs\": [\"{{ $json.forbidden_slugs }}\"]\n}\n"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        -1184,
+        240
+      ],
+      "id": "e7201abb-ec23-47f3-b94c-afb0eddfa67b",
+      "name": "3) Gerar Tema/Títulos (LLM)",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "openAiApi": {
+          "id": "SUBSTITUA_PELO_ID_DA_CREDENCIAL_OPENAI",
+          "name": "OpenAI - Sua Conta"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 4) Slugify & Anti-duplicação\n\nfunction slugify(t){\n  return String(t || '')\n    .toLowerCase()\n    .normalize('NFD').replace(/\\u0300-\\u036f/g,'')\n    .replace(/[^a-z0-9\\s-]/g,'')\n    .trim()\n    .replace(/\\s+/g,'-')\n    .replace(/-+/g,'-');\n}\n\nlet ctx = {};\ntry {\n  ctx = $item(0).$node[\"2) Score & Filtro (escolher keyword/tema)\"].json || {};\n} catch(e) { ctx = {}; }\n\nconst picked_keyword = items[0].json.picked_keyword ?? ctx.picked_keyword ?? null;\nconst forbidden_slugs_arr = items[0].json.forbidden_slugs ?? ctx.forbidden_slugs ?? [];\nconst forbidden = new Set((forbidden_slugs_arr || []).map(s => String(s).toLowerCase().trim()));\n\nfunction getLLMContent(j){\n  if (!j) return null;\n  let content = null;\n  if (typeof j === 'string') content = j;\n  else if (j.message?.content) content = j.message.content;\n  else if (Array.isArray(j) && j[0]?.message?.content) content = j[0].message.content;\n  else if (Array.isArray(j.data) && j.data[0]?.message?.content) content = j.data[0].message.content;\n  else if (j.content) content = j.content;\n\n  if (typeof content === 'string' && content.startsWith('```json') && content.endsWith('```')) {\n    return content.substring(7, content.length - 3).trim();\n  }\n  return content;\n}\n\nconst raw = items[0].json;\nlet contentStr = getLLMContent(raw);\nif (!contentStr) {\n  contentStr = getLLMContent(raw.llm_raw) || '';\n}\n\nlet payload = {};\ntry {\n  payload = JSON.parse(contentStr);\n} catch (e) {\n  try {\n    payload = JSON.parse(contentStr.trim());\n  } catch(e2){\n    payload = {};\n  }\n}\n\nlet h1 =\n  payload.h1 ||\n  payload.title ||\n  (Array.isArray(payload.titles) && payload.titles[0]) ||\n  'Post sem título';\n\nlet candidate = slugify(payload.slug_sugerido || h1);\nlet isDupe = forbidden.has(candidate);\n\nreturn [{\n  json: {\n    picked_keyword,\n    forbidden_slugs: [...forbidden],\n    llm_raw: payload,\n    h1,\n    slug: candidate,\n    needs_new_angle: isDupe,\n    attempts: 1\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -896,
+        240
+      ],
+      "id": "2c4b84bf-3e25-4114-b63d-137560f2198f",
+      "name": "4) Slugify & Anti-duplicação"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1-MINI"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "Você é um redator sênior. Gere NOVO ÂNGULO para o mesmo tema, evitando todos os slugs informados.\nFormato JSON:\n- h1\n- titles (5 variações)\n- slug_sugerido\nRegras:\n- O ângulo deve ser distinto e complementar.\n- Evite termos iguais que gerem o mesmo slug.\nResponda SOMENTE JSON.\n",
+              "role": "system"
+            },
+            {
+              "content": "={\n  \"keyword\": \"{{ $json.picked_keyword }}\",\n  \"forbidden_slugs\": {{ JSON.stringify($json.forbidden_slugs) }}\n}\n"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        -48,
+        -192
+      ],
+      "id": "6a1561d1-7189-4eb2-b220-7cb247078050",
+      "name": "5a) Gerar novo ângulo (se duplicado)",
+      "credentials": {
+        "openAiApi": {
+          "id": "SUBSTITUA_PELO_ID_DA_CREDENCIAL_OPENAI",
+          "name": "OpenAI - Sua Conta"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "function slugify(t){\n  return String(t||'')\n    .toLowerCase()\n    .normalize('NFD').replace(/[\\u0300-\\u036f]/g,'')\n    .replace(/[^a-z0-9\\s-]/g,'')\n    .trim()\n    .replace(/\\s+/g,'-')\n    .replace(/-+/g,'-');\n}\n\nconst input = items[0].json;\nlet payload;\ntry { payload = typeof input.data === 'string' ? JSON.parse(input.data) : (input.data||input); }\ncatch(e){ payload = input; }\n\nconst forbidden = new Set(input.forbidden_slugs||[]);\nlet h1 = payload.h1 || payload.title || payload.H1;\nif(!h1 && Array.isArray(payload.titles) && payload.titles.length) h1 = payload.titles[0];\n\nlet candidate = slugify(payload.slug_sugerido || h1);\nlet isDupe = forbidden.has(candidate);\n\nreturn [{ json:{...input, llm_raw: payload, h1, slug: candidate, needs_new_angle: isDupe, attempts: 1} }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        256,
+        -144
+      ],
+      "id": "588da07e-3208-4bfe-97ad-730055e5b2d9",
+      "name": "5b) Slugify (novo ângulo)"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"client_name\": \"EasySplit\",\n  \"site_url\": \"https://easysplit.com.br/\",\n  \"blog_listing_url\": \"https://easysplit.com.br/blog/\",\n  \"language\": \"pt-BR\",\n  \"locale\": \"pt_BR\",\n  \"audience\": \"Pessoas que dividem contas com amigos, familiares ou colegas de quarto, buscando praticidade e transparência na gestão de despesas compartilhadas.\",\n  \"voice\": {\n    \"tone\": \"amigável, prático e acessível\",\n    \"style\": [\n      \"escaneável\",\n      \"exemplos do dia a dia\",\n      \"dicas práticas\",\n      \"listas\",\n      \"tom conversacional\"\n    ]\n  },\n  \"content_pillars\": [\n    \"Divisão de contas\",\n    \"Apps de finanças pessoais\",\n    \"Gestão de despesas compartilhadas\",\n    \"Economia doméstica\",\n    \"Viagens em grupo\",\n    \"Repúblicas e moradia compartilhada\",\n    \"Casais e finanças\",\n    \"Grupos de amigos\",\n    \"Organização financeira\",\n    \"Dicas de economia\",\n    \"Como dividir despesas\",\n    \"Transparência financeira entre amigos\",\n    \"Controle de gastos\"\n  ],\n  \"seo\": {\n    \"search_intents\": [\n      \"informational\",\n      \"how-to\",\n      \"listicle\",\n      \"comparativo\"\n    ],\n    \"internal_links_map\": {\n      \"dividir contas\": \"/\",\n      \"despesas compartilhadas\": \"/\",\n      \"app de divisão\": \"/\",\n      \"easysplit\": \"/\",\n      \"república\": \"/blog\",\n      \"viagem em grupo\": \"/blog\",\n      \"casais\": \"/blog\"\n    },\n    \"internal_links_min\": 1,\n    \"internal_links_max\": 3\n  },\n  \"output\": {\n    \"default_category\": \"dicas\",\n    \"include_tags_html\": true\n  }\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -720,
+        288
+      ],
+      "id": "a2d55768-b9d0-4ea8-bd87-751224228d73",
+      "name": "Dados_Cliente"
+    },
+    {
+      "parameters": {
+        "content": "## Informações do Cliente - EasySplit",
+        "height": 336,
+        "width": 192,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -768,
+        176
+      ],
+      "typeVersion": 1,
+      "id": "b483040b-d70b-4804-b415-7c7a88245393",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## Planilha Keywords Search Console (Exportadas)",
+        "height": 336,
+        "width": 256,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1680,
+        80
+      ],
+      "typeVersion": 1,
+      "id": "99111481-d5a8-44bb-81be-d468becdc1eb",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "## Cria blogpost otimizado p/ SEO - EasySplit",
+        "height": 256,
+        "width": 384,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -2080,
+        560
+      ],
+      "typeVersion": 1,
+      "id": "07b69fc4-8474-43e0-95be-ec3c82d471ac",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "===TEXTO-FONTE:\nH1: {{ $node[\"4) Slugify & Anti-duplicação\"].json.h1 }}\nSlug: {{ $node[\"4) Slugify & Anti-duplicação\"].json.slug }}\nKeyword (FK): {{ $node[\"4) Slugify & Anti-duplicação\"].json.picked_keyword }}\nTítulos alternativos: {{ $('4) Slugify & Anti-duplicação').item.json.llm_raw.titles }}\n\nContexto do cliente:\n- site_url: {{ $('Dados_Cliente').item.json.site_url }}\n- blog_listing_url: {{ $('Dados_Cliente').item.json.blog_listing_url }}\n- audiência: {{ $('Dados_Cliente').item.json.audience }}\n- voz/estilo: {{ $('Dados_Cliente').item.json.voice.tone }}; {{ $('Dados_Cliente').item.json.voice.style }}\n- pilares: {{ $('Dados_Cliente').item.json.content_pillars }}\n\nInstruções:\n- Produza um artigo coerente, com começo, meio e fim, que traga dicas práticas para pessoas que dividem despesas.\n- O \"seo_title\" deve começar com a FK.\n- O 1º parágrafo deve iniciar com letra maiúscula, conter a FK e contextualizar o tema.\n- Insira uma conclusão clara que amarre o conteúdo.\n",
+        "options": {
+          "systemMessage": "=Você é um editor sênior especializado em FINANÇAS PESSOAIS e DIVISÃO DE DESPESAS. Escreva artigos originais em pt-BR para o blog do EasySplit, com foco em SEO, mas também em qualidade editorial.\n\nCONTEXTO DO EASYSPLIT:\nO EasySplit é um aplicativo para dividir contas e despesas entre amigos, familiares, casais e colegas de república. O público são pessoas que buscam praticidade e transparência na hora de dividir gastos do dia a dia, viagens, moradia compartilhada, etc.\n\nREGRAS SEO (MUST):\n1) Palavras: ≥ 700 (garanta margem). Parágrafos curtos e escaneáveis.\n2) Focus keyword (FK):\n   - No INÍCIO do TÍTULO SEO (primeiras palavras).\n   - No 1º parágrafo (primeiros 10% do texto).\n   - Em pelo menos 1 subtítulo (H2/H3).\n   - Densidade ~1%–2,5% (natural, nunca stuffing).\n3) Título/Slug/Meta:\n   - \"seo_title\" deve COMEÇAR com a FK.\n   - \"title\" pode ser mais criativo, mas com a FK perto do início.\n   - \"slug\" já recebido (≤75 chars).\n   - \"meta_description\" deve conter a FK.\n4) Estrutura:\n   - Sem <h1> e sem TOC.\n   - 4–7 H2/H3. Sempre incluir <h2><strong>Conclusão</strong></h2> no fim.\n   - Abrir com <p> introdutório claro, iniciado com letra maiúscula e contendo a FK.\n   - Tags válidas: <p>, <h2>, <h3>, <h4>, <ul>, <ol>, <li>, <strong>, <em>, <a>, <figure>, <img>.\n5) Links:\n   - 1 link interno obrigatório para {{ $('Dados_Cliente').item.json.blog_listing_url }} (sem nofollow, pode rel=\"noopener\").\n   - Nenhum link externo.\n6) Imagens:\n   - Alt da imagem destacada = FK.\n   - Thumb = \"<FK>-thumb.avif\".\n7) Qualidade Editorial:\n   - Estrutura com lógica narrativa: introdução → desenvolvimento (com subtítulos) → conclusão.\n   - Evite texto genérico. Traga exemplos práticos e dicas aplicáveis.\n   - O conteúdo deve agregar valor real, não apenas repetir palavras-chave.\n   - Nunca inicie frases, parágrafos ou títulos com letra minúscula.\n8) Saída obrigatória em JSON.\n\nFORMATO DE SAÍDA (JSON PURO):\n{\n  \"title\": \"...\",\n  \"seo_title\": \"...\",\n  \"slug\": \"...\",\n  \"meta_description\": \"...\",\n  \"main_keyword\": \"...\",\n  \"focus_keyword\": \"...\",\n  \"content_html\": \"...\",\n  \"excerpt\": \"...\",\n  \"featured_image_url\": null,\n  \"featured_image_alt\": \"...\",\n  \"thumb_filename\": \"...\",\n  \"tags\": [\"...\"],\n  \"category\": \"{{ $('Dados_Cliente').item.json.output.default_category }}\",\n  \"images\": [\n    { \"id\":\"...\", \"provider\":\"freepik\", \"original_url\":\"...\", \"alt\":\"...\", \"suggested_filename\":\"slug-1.avif\" }\n  ],\n  \"qa_check\": {\n    \"word_count\": 0,\n    \"fk_in_seo_title_start\": true,\n    \"fk_in_intro\": true,\n    \"fk_in_subheading\": true,\n    \"density_pct\": 0,\n    \"internal_links_count\": 1,\n    \"external_links_count\": 0,\n    \"conclusion_present\": true,\n    \"intro_capitalized\": true\n  }\n}\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        -2000,
+        640
+      ],
+      "id": "cb11d08f-d351-4482-aaf8-a28f62cf29f2",
+      "name": "AI Agent1",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4.1-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -2048,
+        880
+      ],
+      "id": "823a306c-f59e-4bda-b25d-5bba1447f8ed",
+      "name": "OpenAI Chat Model1",
+      "credentials": {
+        "openAiApi": {
+          "id": "SUBSTITUA_PELO_ID_DA_CREDENCIAL_OPENAI",
+          "name": "OpenAI - Sua Conta"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Normalizar saída do AI Agent\n */\n\nfunction safeParse(str) {\n  if (str == null) return null;\n  if (typeof str !== 'string') return str;\n  let s = str.trim();\n  s = s.replace(/^```(?:json)?/i, '').replace(/```$/,'').trim();\n  try { return JSON.parse(s); } catch (e) {\n    try { return JSON.parse(s.replace(/\\n/g,' ').replace(/\\r/g,' ')); } catch(e2) {\n      return null;\n    }\n  }\n}\nfunction normSlug(s) {\n  return String(s || '')\n    .toLowerCase()\n    .replace(/\\s+/g,'-')\n    .replace(/[^a-z0-9\\-áàâãäéèêëíìîïóòôõöúùûüç]/gi,'')\n    .replace(/-+/g,'-')\n    .replace(/^-|-$/g,'');\n}\nfunction ensureArray(a) {\n  if (!a) return [];\n  return Array.isArray(a) ? a : [a];\n}\n\nconst raw = $json.output ?? $json ?? null;\nlet obj = safeParse(raw);\nif (!obj || typeof obj !== 'object') {\n  return [{ json: { error: 'AGENT_OUTPUT_PARSE_ERROR', raw: raw } }];\n}\n\nconst siteUrl = $json.client_context?.site_url || $item(0).$node[\"Dados_Cliente\"]?.json?.site_url || null;\nconst blogListing = $json.client_context?.blog_listing_url || $item(0).$node[\"Dados_Cliente\"]?.json?.blog_listing_url || null;\nconst mainKw = (obj.main_keyword || obj.focus_keyword || $json.picked_keyword || '').toString().trim();\nconst h1 = $json.h1 || obj.title || '';\n\nlet title = (obj.title || h1 || '').toString().trim();\nlet meta = (obj.meta_description || '').toString().trim();\nlet slug = normSlug(obj.slug || $json.slug || '');\nif (!slug) slug = normSlug(mainKw || title);\n\nconst TITLE_MAX = 60;\nconst META_MAX  = 160;\nconst SLUG_MAX  = 75;\n\nconst needs_title_rewrite = String(title || '').length > TITLE_MAX;\nconst needs_meta_rewrite  = String(meta  || '').length > META_MAX;\nconst needs_slug_rewrite  = String(slug || '').length > SLUG_MAX;\nif (needs_slug_rewrite) {\n  slug = slug.slice(0, SLUG_MAX).replace(/-+$/,'');\n}\n\nconst featuredImageAlt = mainKw || (title.split(':')[0] || '').trim() || 'imagem destaque';\nconst thumbFilename = `${(mainKw || slug || 'thumb').toLowerCase()} - thumb.avif`;\n\nlet content_html = (obj.content_html || '').toString().trim();\n\nif (blogListing && !content_html.includes('<strong>Veja mais:</strong>')) {\n  const footer = `<p><strong>Veja mais:</strong> <a href=\"${blogListing}\" target=\"_blank\" rel=\"noopener nofollow\">${blogListing}</a></p>`;\n  content_html = content_html + footer;\n}\n\nconst tags = ensureArray(obj.tags).slice(0, 8);\nconst category = obj.category || 'dicas';\n\nconst imagesIn = ensureArray(obj.images).slice(0, 3);\nconst images = imagesIn.map((img, i) => {\n  return {\n    id: (img?.id ?? '').toString(),\n    provider: 'freepik',\n    original_url: img?.original_url || img?.url || null,\n    width: Number(img?.width || 0) || null,\n    height: Number(img?.height || 0) || null,\n    alt: (img?.alt || featuredImageAlt).toString(),\n    suggested_filename: img?.suggested_filename || `${slug}-${i+1}.avif`,\n    attribution: img?.attribution || 'Freepik',\n    license_url: img?.license_url || 'https://www.freepik.com/profile/license/pdf'\n  };\n});\n\nfunction buildExcerpt(htmlOrText) {\n  const txt = String(htmlOrText || '')\n    .replace(/<[^>]+>/g,' ')\n    .replace(/\\s+/g,' ')\n    .trim();\n  const words = txt.split(' ');\n  const n = Math.max(35, Math.min(45, words.length));\n  return words.slice(0, n).join(' ');\n}\nconst excerpt = obj.excerpt || buildExcerpt(content_html);\n\nconst validations = {\n  title_len_ok: title.length <= 60,\n  meta_len_ok: meta.length <= 160,\n  slug_len_ok: slug.length <= 75\n};\n\nreturn [{\n  json: {\n    title,\n    slug,\n    meta_description: meta,\n    main_keyword: mainKw,\n    focus_keyword: mainKw,\n    content_html,\n    excerpt,\n    featured_image_url: null,\n    featured_image_alt: featuredImageAlt,\n    thumb_filename: thumbFilename,\n    tags,\n    category,\n    images,\n    validations\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1600,
+        608
+      ],
+      "id": "bcba709d-48df-4c3b-b747-fd7bca898c91",
+      "name": "Normalizar saída do Agente"
+    },
+    {
+      "parameters": {
+        "url": "https://api.freepik.com/v1/resources",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "order",
+              "value": "relevance"
+            },
+            {
+              "name": "filters[content_type][photo]",
+              "value": "1"
+            },
+            {
+              "name": "filters[orientation][landscape]",
+              "value": "1"
+            },
+            {
+              "name": "filters[license][freemium]",
+              "value": "1"
+            },
+            {
+              "name": "term",
+              "value": "={{ $fromAI('search_term', '', 'string') }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-freepik-api-key",
+              "value": "=SUBSTITUA_PELA_SUA_API_KEY_FREEPIK"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.2,
+      "position": [
+        -1872,
+        880
+      ],
+      "id": "e3015c91-e78e-40cd-a0a9-e80fc40a8c4a",
+      "name": "freepik_search"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -2000,
+        288
+      ],
+      "id": "4f7a2ee0-81f4-46ae-b19d-4b501c521da6",
+      "name": "When clicking 'Execute workflow'"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://easysplit.com.br/wp/wp-json/wp/v2/posts",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "wordpressApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "title",
+              "value": "={{ $node[\"Normalizar saída do Agente\"].json[\"title\"] }}"
+            },
+            {
+              "name": "content",
+              "value": "={{ $node[\"Normalizar saída do Agente\"].json[\"content_html\"] }}"
+            },
+            {
+              "name": "slug",
+              "value": "={{ $node[\"Normalizar saída do Agente\"].json[\"slug\"] }}"
+            },
+            {
+              "name": "excerpt",
+              "value": "={{ $node[\"Normalizar saída do Agente\"].json[\"excerpt\"] }}"
+            },
+            {
+              "name": "status",
+              "value": "publish"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1200,
+        608
+      ],
+      "id": "08c2c480-6627-4bc0-876e-cc190883cd89",
+      "name": "Post Artigo",
+      "credentials": {
+        "wordpressApi": {
+          "id": "SUBSTITUA_PELO_ID_DA_CREDENCIAL_WP",
+          "name": "EasySplit WordPress"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Post Artigo no WordPress EasySplit",
+        "height": 256,
+        "width": 304,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1280,
+        528
+      ],
+      "typeVersion": 1,
+      "id": "8055838e-56ff-412b-ac22-953bb74f3125",
+      "name": "Sticky Note Post"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "0) Agendar (semanal, seg, qua, sex 09:00)": {
+      "main": [
+        [
+          {
+            "node": "1) Ler Planilha (keywords + histórico)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "1) Ler Planilha (keywords + histórico)": {
+      "main": [
+        [
+          {
+            "node": "2) Score & Filtro (escolher keyword/tema)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2) Score & Filtro (escolher keyword/tema)": {
+      "main": [
+        [
+          {
+            "node": "3) Gerar Tema/Títulos (LLM)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3) Gerar Tema/Títulos (LLM)": {
+      "main": [
+        [
+          {
+            "node": "4) Slugify & Anti-duplicação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "4) Slugify & Anti-duplicação": {
+      "main": [
+        [
+          {
+            "node": "Dados_Cliente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dados_Cliente": {
+      "main": [
+        [
+          {
+            "node": "5) IF slug duplicado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5) IF slug duplicado?": {
+      "main": [
+        [
+          {
+            "node": "5a) Gerar novo ângulo (se duplicado)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5a) Gerar novo ângulo (se duplicado)": {
+      "main": [
+        [
+          {
+            "node": "5b) Slugify (novo ângulo)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5b) Slugify (novo ângulo)": {
+      "main": [
+        [
+          {
+            "node": "5c) Prosseguir?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5c) Prosseguir?": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "5a) Gerar novo ângulo (se duplicado)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "freepik_search": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "Normalizar saída do Agente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar saída do Agente": {
+      "main": [
+        [
+          {
+            "node": "Post Artigo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking 'Execute workflow'": {
+      "main": [
+        [
+          {
+            "node": "1) Ler Planilha (keywords + histórico)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "easysplit-v1",
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "instanceId": ""
+  },
+  "id": "",
+  "tags": []
+}
