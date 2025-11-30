@@ -6,7 +6,7 @@ interface AuthContextType {
   user: WPUser | null;
   token: string | null;
   isLoading: boolean;
-  login: (username: string, password: string) => Promise<void>;
+  login: (username: string, password: string, rememberMe?: boolean) => Promise<void>;
   logout: () => void;
 }
 
@@ -37,10 +37,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     checkAuth();
   }, []);
 
-  const login = useCallback(async (username: string, password: string) => {
+  const login = useCallback(async (username: string, password: string, rememberMe: boolean = false) => {
     setIsLoading(true);
     try {
-      const newAuth = await authLogin(username, password);
+      const newAuth = await authLogin(username, password, rememberMe);
       setAuthState(newAuth);
     } finally {
       setIsLoading(false);

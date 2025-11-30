@@ -1,0 +1,194 @@
+# =====================================================
+# CONFIGURAÇÃO DO WORDPRESS COMO HEADLESS CMS
+# =====================================================
+# Última atualização: 29/11/2025
+# =====================================================
+# 
+# PROBLEMA: O WordPress gera sitemap com URLs /wp/ mas 
+#           queremos que o sitemap tenha URLs /blog/
+#
+# SOLUÇÃO: Modificar o Rank Math para gerar URLs corretas
+# =====================================================
+# O WordPress deve funcionar apenas como API/CMS
+# Os posts devem ser acessados APENAS pelo site React
+# =====================================================
+
+# =====================================================
+# OPÇÃO 1: Adicionar no functions.php do tema WordPress
+# =====================================================
+# Vá em: Aparência > Editor de Arquivos do Tema > functions.php
+# Adicione este código no FINAL do arquivo:
+
+/*
+ * Redirecionar páginas de posts para o site React
+ * WordPress funciona apenas como CMS headless
+ */mas 
+
+// Redirecionar single posts para o site React
+add_action('template_redirect', function() {
+    // Se for um post individual, redireciona para o site React
+    if (is_single()) {
+        $slug = get_post_field('post_name', get_the_ID());
+        wp_redirect('https://easysplit.com.br/blog/' . $slug, 301);
+        exit;
+    }
+    
+    // Se for a página de categoria
+    if (is_category()) {
+        $cat = get_queried_object();
+        wp_redirect('https://easysplit.com.br/blog/categoria/' . $cat->slug, 301);
+        exit;
+    }
+    
+    // Se for a página de tag
+    if (is_tag()) {
+        $tag = get_queried_object();
+        wp_redirect('https://easysplit.com.br/blog/tag/' . $tag->slug, 301);
+        exit;
+    }
+    
+    // Se for a página de autor
+    if (is_author()) {
+        wp_redirect('https://easysplit.com.br/blog', 301);
+        exit;
+    }
+    
+    // Se for a página de arquivo (lista de posts)
+    if (is_archive() || is_home()) {
+        wp_redirect('https://easysplit.com.br/blog', 301);
+        exit;
+    }
+});
+
+// Alterar URLs no sitemap do WordPress/Rank Math/Yoast para apontar para o React
+add_filter('wpseo_sitemap_entry', function($url, $type, $object) {
+    if ($type === 'post') {
+        $url['loc'] = str_replace('/wp/', '/blog/', $url['loc']);
+        $url['loc'] = str_replace('easysplit.com.br/blog/', 'easysplit.com.br/blog/', $url['loc']);
+    }
+    return $url;
+}, 10, 3);
+
+// Para Rank Math SEO (se estiver usando)
+add_filter('rank_math/sitemap/entry', function($url, $type, $object) {
+    if (isset($url['loc']) && strpos($url['loc'], '/wp/') !== false) {
+        // Remover /wp/ e ajustar para /blog/
+        $url['loc'] = preg_replace('#/wp/([^/]+)/?$#', '/blog/$1', $url['loc']);
+    }
+    return $url;
+}, 10, 3);
+
+
+# =====================================================
+# OPÇÃO 2: Desabilitar o sitemap do WordPress
+# =====================================================
+# E usar apenas o sitemap do site React (que você já tem)
+
+# Adicione no functions.php:
+
+// Desabilitar sitemap nativo do WordPress
+add_filter('wp_sitemaps_enabled', '__return_false');
+
+// OU se usar Rank Math, vá em:
+# Rank Math > Configurações do Sitemap > Desativar sitemap
+
+// OU se usar Yoast, vá em:
+# SEO > Recursos > Sitemaps XML > Desativar
+
+
+# =====================================================
+# OPÇÃO 3: Bloquear indexação via robots.txt do WP
+# =====================================================
+# Adicione no functions.php:
+
+add_filter('robots_txt', function($output, $public) {
+    $output .= "\n# Bloquear posts do WordPress (usar apenas a API)\n";
+    $output .= "Disallow: /wp/20*\n";  // Bloqueia URLs de arquivos por ano
+    $output .= "Disallow: /wp/category/\n";
+    $output .= "Disallow: /wp/tag/\n";
+    $output .= "Disallow: /wp/author/\n";
+    return $output;
+}, 10, 2);
+
+
+# =====================================================
+# OPÇÃO 4: Via .htaccess do WordPress
+# =====================================================
+# Adicione no .htaccess dentro da pasta /wp/:
+
+# Redirecionar posts para o site React
+<IfModule mod_rewrite.c>
+RewriteEngine On
+
+# Não redirecionar admin, api, wp-content, wp-includes
+RewriteCond %{REQUEST_URI} !^/wp/wp-admin [NC]
+RewriteCond %{REQUEST_URI} !^/wp/wp-json [NC]
+RewriteCond %{REQUEST_URI} !^/wp/wp-content [NC]
+RewriteCond %{REQUEST_URI} !^/wp/wp-includes [NC]
+RewriteCond %{REQUEST_URI} !^/wp/wp-login [NC]
+RewriteCond %{REQUEST_URI} !^/wp/xmlrpc [NC]
+
+# Se for uma URL de post (sem extensão e não é diretório)
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} ^/wp/([a-z0-9-]+)/?$ [NC]
+
+# Redirecionar para o site React
+RewriteRule ^wp/(.+)$ https://easysplit.com.br/blog/$1 [R=301,L]
+</IfModule>
+
+
+# =====================================================
+# RECOMENDAÇÃO FINAL
+# =====================================================
+# 
+# 1. USE A OPÇÃO 1 (functions.php) - É a mais completa
+# 2. DESATIVE o sitemap do WordPress (Opção 2)
+# 3. USE o sitemap do React que já está em /sitemap.xml
+#
+# Assim:
+# - WordPress = apenas CMS/API (wp-admin funciona normal)
+# - Posts = acessíveis apenas via easysplit.com.br/blog/
+# - Sitemap = apenas o do React (com URLs corretas)
+# =====================================================
+
+
+# =====================================================
+# CÓDIGO COMPLETO PARA COPIAR NO FUNCTIONS.PHP:
+# =====================================================
+
+/**
+ * EasySplit - WordPress Headless Mode
+ * Redireciona front-end para o site React
+ */
+
+// Redirecionar todas as páginas públicas para o React
+add_action('template_redirect', function() {
+    // Ignorar admin e API
+    if (is_admin() || (defined('REST_REQUEST') && REST_REQUEST)) {
+        return;
+    }
+    
+    $redirect_url = 'https://easysplit.com.br/blog';
+    
+    if (is_single()) {
+        $redirect_url = 'https://easysplit.com.br/blog/' . get_post_field('post_name', get_the_ID());
+    } elseif (is_category()) {
+        $redirect_url = 'https://easysplit.com.br/blog/categoria/' . get_queried_object()->slug;
+    } elseif (is_tag()) {
+        $redirect_url = 'https://easysplit.com.br/blog/tag/' . get_queried_object()->slug;
+    }
+    
+    wp_redirect($redirect_url, 301);
+    exit;
+});
+
+// Desabilitar sitemap do WordPress
+add_filter('wp_sitemaps_enabled', '__return_false');
+
+// Adicionar noindex em todas as páginas públicas (fallback)
+add_action('wp_head', function() {
+    if (!is_admin()) {
+        echo '<meta name="robots" content="noindex, nofollow">' . "\n";
+    }
+});

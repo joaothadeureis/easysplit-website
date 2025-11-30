@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { Link } from 'react-router-dom';
 import { Check, CheckCircle2, ChevronDown, ChevronUp, Layout, DollarSign, TrendingUp, Zap, ShoppingCart, UserCheck, Briefcase, PlayCircle, Sparkles } from 'lucide-react';
 import { Button } from '../components/Button';
-import { DashboardMockup } from '../components/DashboardMockup';
 import { FAQS, PLANS } from '../constants';
+
+// Lazy load DashboardMockup (contém recharts que é pesado)
+const DashboardMockup = lazy(() => import('../components/DashboardMockup').then(m => ({ default: m.DashboardMockup })));
 
 // Animated words for the hero
 const ROTATING_WORDS = ['CONVERSÕES', 'VENDAS', 'CAPTAÇÕES', 'RESULTADOS'];
@@ -106,7 +108,9 @@ export const Home: React.FC = () => {
 
           <div className="relative mx-auto max-w-5xl animate-fade-in-up" style={{ animationDelay: '1.1s' }}>
              <div className="absolute -inset-1 bg-gradient-to-r from-brand-yellow via-brand-purple to-brand-yellow opacity-30 blur-2xl rounded-2xl animate-gradient-x bg-[length:200%_auto]"></div>
-             <DashboardMockup />
+             <Suspense fallback={<div className="w-full h-[400px] bg-neutral-800/50 animate-pulse rounded-xl" />}>
+               <DashboardMockup />
+             </Suspense>
           </div>
         </div>
         
@@ -126,6 +130,8 @@ export const Home: React.FC = () => {
                src="https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?q=80&w=3000&auto=format&fit=crop" 
                className="w-full h-full object-cover grayscale" 
                alt="Background Texture"
+               loading="lazy"
+               decoding="async"
             />
          </div>
          <div className="absolute inset-0 bg-gradient-to-b from-brand-dark via-transparent to-brand-dark z-0"></div>
@@ -294,7 +300,7 @@ export const Home: React.FC = () => {
                 <div className="bg-[#111]/90 backdrop-blur-md border border-white/10 rounded-3xl p-8 md:p-10 hover:border-orange-500/50 transition-colors group">
                     <div className="flex items-center justify-between mb-8">
                          <div className="flex items-center gap-4">
-                            <img src="https://agenciamaximum.com/wp-content/uploads/2025/10/google-analytics.svg" alt="Google Analytics 4" className="w-12 h-12" />
+                            <img src="https://agenciamaximum.com/wp-content/uploads/2025/10/google-analytics.svg" alt="Google Analytics 4" className="w-12 h-12" loading="lazy" decoding="async" />
                             <h4 className="text-2xl font-bold text-white">Google Analytics 4</h4>
                          </div>
                          <div className="text-[#E37400] opacity-0 group-hover:opacity-100 transition-opacity">
@@ -306,6 +312,8 @@ export const Home: React.FC = () => {
                             src="https://agenciamaximum.com/wp-content/uploads/2025/10/dashboard-google-analytics-4.webp" 
                             alt="Dashboard Google Analytics 4"
                             className="w-full h-auto hover:scale-105 transition-transform duration-700"
+                            loading="lazy"
+                            decoding="async"
                         />
                     </div>
                     <ul className="space-y-4">
@@ -324,7 +332,7 @@ export const Home: React.FC = () => {
                 <div className="bg-[#111]/90 backdrop-blur-md border border-white/10 rounded-3xl p-8 md:p-10 hover:border-blue-500/50 transition-colors group">
                     <div className="flex items-center justify-between mb-8">
                          <div className="flex items-center gap-4">
-                             <img src="https://agenciamaximum.com/wp-content/uploads/2025/10/siteIcon.webp" alt="Microsoft Clarity" className="w-12 h-12" />
+                             <img src="https://agenciamaximum.com/wp-content/uploads/2025/10/siteIcon.webp" alt="Microsoft Clarity" className="w-12 h-12" loading="lazy" decoding="async" />
                             <h4 className="text-2xl font-bold text-white">Microsoft Clarity</h4>
                          </div>
                          <div className="text-[#0078D4] opacity-0 group-hover:opacity-100 transition-opacity">
@@ -336,6 +344,8 @@ export const Home: React.FC = () => {
                             src="https://agenciamaximum.com/wp-content/uploads/2025/10/dashboard-clarity.webp" 
                             alt="Dashboard Microsoft Clarity"
                             className="w-full h-auto hover:scale-105 transition-transform duration-700"
+                            loading="lazy"
+                            decoding="async"
                         />
                     </div>
                     <ul className="space-y-4">

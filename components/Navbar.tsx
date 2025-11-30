@@ -63,7 +63,7 @@ export const Navbar: React.FC = () => {
   return (
     <>
       {/* Top Banner */}
-      <div className="bg-gradient-to-r from-brand-purple-dark via-indigo-900 to-black border-b border-white/5 text-white text-xs py-2 px-4 fixed top-0 left-0 right-0 z-[60] h-10 flex items-center justify-between shadow-lg">
+      <div className="bg-gradient-to-r from-purple-950 via-indigo-950 to-black border-b border-white/5 text-white text-xs py-2 px-4 fixed top-0 left-0 right-0 z-[60] h-10 flex items-center justify-between shadow-lg">
         <div className="hidden sm:flex items-center gap-4 font-mono text-brand-yellow font-bold">
            {!isExpired && (
              <>

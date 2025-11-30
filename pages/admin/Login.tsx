@@ -7,6 +7,7 @@ export const AdminLogin: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { login } = useAuth();
@@ -18,7 +19,7 @@ export const AdminLogin: React.FC = () => {
     setIsSubmitting(true);
 
     try {
-      await login(username, password);
+      await login(username, password, rememberMe);
       navigate('/admin');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao fazer login');
@@ -115,6 +116,31 @@ export const AdminLogin: React.FC = () => {
                   {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
               </div>
+            </div>
+
+            {/* Remember Me */}
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setRememberMe(!rememberMe)}
+                className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
+                  rememberMe 
+                    ? 'bg-brand-yellow border-brand-yellow' 
+                    : 'border-white/30 hover:border-white/50'
+                }`}
+              >
+                {rememberMe && (
+                  <svg className="w-3 h-3 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+              </button>
+              <label 
+                onClick={() => setRememberMe(!rememberMe)}
+                className="text-sm text-neutral-300 cursor-pointer select-none"
+              >
+                Manter conectado neste dispositivo
+              </label>
             </div>
 
             {/* Submit */}

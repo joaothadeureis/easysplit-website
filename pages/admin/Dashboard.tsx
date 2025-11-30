@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { BlogPost } from '../../types';
 import { fetchPosts, deletePost } from '../../services/wordpressService';
+import { BannerEditor } from '../../components/BannerEditor';
+import { TaxonomyManager } from '../../components/TaxonomyManager';
 import { 
   LayoutDashboard, 
   FileText, 
@@ -16,7 +18,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Search,
-  AlertCircle
+  AlertCircle,
+  Image,
+  FolderOpen
 } from 'lucide-react';
 
 export const AdminDashboard: React.FC = () => {
@@ -29,6 +33,7 @@ export const AdminDashboard: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<'posts' | 'banner' | 'taxonomy'>('posts');
 
   const loadPosts = async (page: number = 1, search?: string) => {
     setLoading(true);
@@ -108,6 +113,49 @@ export const AdminDashboard: React.FC = () => {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 py-8">
+        {/* Tabs */}
+        <div className="flex gap-4 mb-8 border-b border-white/10 pb-4">
+          <button
+            onClick={() => setActiveTab('posts')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all ${
+              activeTab === 'posts' 
+                ? 'bg-brand-purple text-white' 
+                : 'text-neutral-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <FileText size={18} />
+            Posts
+          </button>
+          <button
+            onClick={() => setActiveTab('taxonomy')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all ${
+              activeTab === 'taxonomy' 
+                ? 'bg-brand-purple text-white' 
+                : 'text-neutral-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <FolderOpen size={18} />
+            Categorias & Tags
+          </button>
+          <button
+            onClick={() => setActiveTab('banner')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all ${
+              activeTab === 'banner' 
+                ? 'bg-brand-purple text-white' 
+                : 'text-neutral-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Image size={18} />
+            Banner do Blog
+          </button>
+        </div>
+
+        {activeTab === 'banner' ? (
+          <BannerEditor />
+        ) : activeTab === 'taxonomy' ? (
+          <TaxonomyManager />
+        ) : (
+        <>
         {/* Actions Bar */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
           <div>
@@ -274,6 +322,8 @@ export const AdminDashboard: React.FC = () => {
             </>
           )}
         </div>
+        </>
+        )}
       </main>
 
       {/* Delete Confirmation Modal */}

@@ -21,13 +21,35 @@ export interface AuthState {
 }
 
 const AUTH_STORAGE_KEY = 'blog_auth';
+const REMEMBER_KEY = 'blog_auth_remember';
 
 /**
- * Get stored auth state from localStorage
+ * Check if user chose to be remembered
+ */
+const isRemembered = (): boolean => {
+  return localStorage.getItem(REMEMBER_KEY) === 'true';
+};
+
+/**
+ * Get the appropriate storage based on remember preference
+ */
+const getStorage = (): Storage => {
+  return isRemembered() ? localStorage : sessionStorage;
+};
+
+/**
+ * Get stored auth state from storage
  */
 export const getStoredAuth = (): AuthState => {
   try {
-    const stored = localStorage.getItem(AUTH_STORAGE_KEY);
+    // Check localStorage first (for remembered sessions)
+    let stored = localStorage.getItem(AUTH_STORAGE_KEY);
+    
+    // If not in localStorage, check sessionStorage
+    if (!stored) {
+      stored = sessionStorage.getItem(AUTH_STORAGE_KEY);
+    }
+    
     if (stored) {
       const parsed = JSON.parse(stored);
       return {
@@ -43,55 +65,81 @@ export const getStoredAuth = (): AuthState => {
 };
 
 /**
- * Store auth state in localStorage
+ * Store auth state in appropriate storage
  */
-const storeAuth = (auth: AuthState): void => {
+const storeAuth = (auth: AuthState, rememberMe: boolean): void => {
   try {
-    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(auth));
+    const data = JSON.stringify(auth);
+    
+    if (rememberMe) {
+      localStorage.setItem(REMEMBER_KEY, 'true');
+      localStorage.setItem(AUTH_STORAGE_KEY, data);
+    } else {
+      localStorage.removeItem(REMEMBER_KEY);
+      localStorage.removeItem(AUTH_STORAGE_KEY);
+      sessionStorage.setItem(AUTH_STORAGE_KEY, data);
+    }
   } catch (e) {
     console.error('Error storing auth state:', e);
   }
 };
 
 /**
- * Clear auth state from localStorage
+ * Clear auth state from all storages
  */
 const clearAuth = (): void => {
   try {
     localStorage.removeItem(AUTH_STORAGE_KEY);
+    localStorage.removeItem(REMEMBER_KEY);
+    sessionStorage.removeItem(AUTH_STORAGE_KEY);
   } catch (e) {
     console.error('Error clearing auth state:', e);
   }
 };
 
 /**
+ * Fetch with retry for connection issues
+ */
+const fetchWithRetry = async (url: string, options: RequestInit, retries = 3): Promise<Response> => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const response = await fetch(url, options);
+      return response;
+    } catch (error) {
+      console.log(`Attempt ${i + 1} failed:`, error);
+      if (i === retries - 1) throw error;
+      // Wait before retrying (exponential backoff)
+      await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+    }
+  }
+  throw new Error('Falha na conexão após múltiplas tentativas');
+};
+
+/**
  * Login with WordPress username and Application Password
  * Creates a Base64 encoded token for Basic Authentication
+ * @param rememberMe - If true, saves session in localStorage for persistence across browser sessions
  */
-export const login = async (username: string, password: string): Promise<AuthState> => {
+export const login = async (username: string, password: string, rememberMe: boolean = false): Promise<AuthState> => {
   try {
     // Remove spaces from Application Password (WordPress shows it with spaces for readability)
     const cleanPassword = password.replace(/\s/g, '');
     const cleanUsername = username.trim();
     
-    // Debug: log what we're sending
-    console.log('Attempting login with username:', cleanUsername);
-    console.log('Password length after removing spaces:', cleanPassword.length);
-    
     // Create Base64 encoded credentials for WordPress Basic Auth
-    // Use encodeURIComponent to handle special characters properly
     const credentials = `${cleanUsername}:${cleanPassword}`;
     const token = btoa(unescape(encodeURIComponent(credentials)));
     
-    console.log('Making request to:', `${API_URL}/users/me`);
+    console.log('Attempting login for:', cleanUsername);
 
-    // Validate credentials by fetching user info
-    const response = await fetch(`${API_URL}/users/me`, {
+    // Validate credentials by fetching user info (with retry)
+    const response = await fetchWithRetry(`${API_URL}/users/me`, {
       method: 'GET',
       headers: {
-        'Authorization': `Basic ${token}`
+        'Authorization': `Basic ${token}`,
+        'Cache-Control': 'no-cache'
       },
-      credentials: 'omit' // Don't send cookies
+      credentials: 'omit'
     });
 
     console.log('Response status:', response.status);
@@ -102,14 +150,13 @@ export const login = async (username: string, password: string): Promise<AuthSta
       if (response.status === 401) {
         throw new Error('Credenciais inválidas. Use uma Senha de Aplicativo do WordPress.');
       }
+      if (response.status === 403) {
+        throw new Error('Acesso negado. Verifique suas permissões no WordPress.');
+      }
       throw new Error('Erro ao conectar com WordPress');
     }
 
     const user = await response.json();
-
-    // User authenticated successfully - if we got here, the user is valid
-    // WordPress API returns user data only for authenticated users
-    // Administrator users always have all permissions
     console.log('User authenticated:', user.name, 'ID:', user.id);
 
     const authState: AuthState = {
@@ -125,10 +172,14 @@ export const login = async (username: string, password: string): Promise<AuthSta
       token
     };
 
-    storeAuth(authState);
+    storeAuth(authState, rememberMe);
     return authState;
   } catch (error) {
     console.error('Login error:', error);
+    // Improve error message for network issues
+    if (error instanceof TypeError && error.message === 'Failed to fetch') {
+      throw new Error('Erro de conexão. Verifique sua internet e tente novamente.');
+    }
     throw error;
   }
 };

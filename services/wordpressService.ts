@@ -433,3 +433,226 @@ export const uploadMedia = async (file: File): Promise<{ id: number; source_url:
     throw error;
   }
 };
+
+// ==================== CATEGORIES & TAGS MANAGEMENT ====================
+
+export interface CreateCategoryData {
+  name: string;
+  slug?: string;
+  description?: string;
+  parent?: number;
+}
+
+export interface CreateTagData {
+  name: string;
+  slug?: string;
+  description?: string;
+}
+
+/**
+ * Create a new category in WordPress (requires authentication)
+ */
+export const createCategory = async (data: CreateCategoryData): Promise<WPCategory> => {
+  const auth = getStoredAuth();
+  if (!auth.token) {
+    throw new Error('Autenticação necessária para criar categorias');
+  }
+
+  try {
+    const { controller, timeoutId } = createTimeoutController();
+
+    const response = await fetch(`${API_URL}/categories`, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Authorization': `Basic ${auth.token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data)
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `Erro ao criar categoria: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Failed to create category:', error);
+    throw error;
+  }
+};
+
+/**
+ * Update a category in WordPress (requires authentication)
+ */
+export const updateCategory = async (id: number, data: Partial<CreateCategoryData>): Promise<WPCategory> => {
+  const auth = getStoredAuth();
+  if (!auth.token) {
+    throw new Error('Autenticação necessária para editar categorias');
+  }
+
+  try {
+    const { controller, timeoutId } = createTimeoutController();
+
+    const response = await fetch(`${API_URL}/categories/${id}`, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Authorization': `Basic ${auth.token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data)
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `Erro ao atualizar categoria: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Failed to update category:', error);
+    throw error;
+  }
+};
+
+/**
+ * Delete a category in WordPress (requires authentication)
+ */
+export const deleteCategory = async (id: number): Promise<void> => {
+  const auth = getStoredAuth();
+  if (!auth.token) {
+    throw new Error('Autenticação necessária para excluir categorias');
+  }
+
+  try {
+    const { controller, timeoutId } = createTimeoutController();
+
+    const response = await fetch(`${API_URL}/categories/${id}?force=true`, {
+      method: 'DELETE',
+      signal: controller.signal,
+      headers: {
+        'Authorization': `Basic ${auth.token}`
+      }
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `Erro ao excluir categoria: ${response.statusText}`);
+    }
+  } catch (error) {
+    console.error('Failed to delete category:', error);
+    throw error;
+  }
+};
+
+/**
+ * Create a new tag in WordPress (requires authentication)
+ */
+export const createTag = async (data: CreateTagData): Promise<WPTag> => {
+  const auth = getStoredAuth();
+  if (!auth.token) {
+    throw new Error('Autenticação necessária para criar tags');
+  }
+
+  try {
+    const { controller, timeoutId } = createTimeoutController();
+
+    const response = await fetch(`${API_URL}/tags`, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Authorization': `Basic ${auth.token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data)
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `Erro ao criar tag: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Failed to create tag:', error);
+    throw error;
+  }
+};
+
+/**
+ * Update a tag in WordPress (requires authentication)
+ */
+export const updateTag = async (id: number, data: Partial<CreateTagData>): Promise<WPTag> => {
+  const auth = getStoredAuth();
+  if (!auth.token) {
+    throw new Error('Autenticação necessária para editar tags');
+  }
+
+  try {
+    const { controller, timeoutId } = createTimeoutController();
+
+    const response = await fetch(`${API_URL}/tags/${id}`, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Authorization': `Basic ${auth.token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data)
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `Erro ao atualizar tag: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Failed to update tag:', error);
+    throw error;
+  }
+};
+
+/**
+ * Delete a tag in WordPress (requires authentication)
+ */
+export const deleteTag = async (id: number): Promise<void> => {
+  const auth = getStoredAuth();
+  if (!auth.token) {
+    throw new Error('Autenticação necessária para excluir tags');
+  }
+
+  try {
+    const { controller, timeoutId } = createTimeoutController();
+
+    const response = await fetch(`${API_URL}/tags/${id}?force=true`, {
+      method: 'DELETE',
+      signal: controller.signal,
+      headers: {
+        'Authorization': `Basic ${auth.token}`
+      }
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `Erro ao excluir tag: ${response.statusText}`);
+    }
+  } catch (error) {
+    console.error('Failed to delete tag:', error);
+    throw error;
+  }
+};

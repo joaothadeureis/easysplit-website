@@ -2,24 +2,47 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { BlogPost, WPCategory, WPPagination } from '../types';
 import { fetchPosts, fetchCategories } from '../services/wordpressService';
 import { Link } from 'react-router-dom';
-import { Calendar, User, ArrowRight, Search, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Calendar, ArrowRight, Search, ChevronLeft, ChevronRight, X, Clock } from 'lucide-react';
+import { BlogSidebar } from '../components/BlogSidebar';
+
+// Utility to strip HTML tags
+const stripHtml = (html: string): string => {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  return doc.body.textContent || '';
+};
+
+// Estimate reading time
+const getReadingTime = (content: string): number => {
+  const wordsPerMinute = 200;
+  const text = stripHtml(content);
+  const words = text.split(/\s+/).length;
+  return Math.ceil(words / wordsPerMinute);
+};
 
 export const Blog: React.FC = () => {
   const [posts, setPosts] = useState<BlogPost[]>([]);
+  const [featuredPost, setFeaturedPost] = useState<BlogPost | null>(null);
   const [categories, setCategories] = useState<WPCategory[]>([]);
   const [pagination, setPagination] = useState<WPPagination>({ total: 0, totalPages: 1, currentPage: 1 });
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeSearch, setActiveSearch] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<number | undefined>(undefined);
 
   const loadPosts = useCallback(async (page: number = 1) => {
     setLoading(true);
-    const { posts: data, pagination: pag } = await fetchPosts(page, 9, selectedCategory, activeSearch);
-    setPosts(data);
+    const { posts: data, pagination: pag } = await fetchPosts(page, 10, undefined, activeSearch);
+    
+    if (page === 1 && data.length > 0 && !activeSearch) {
+      setFeaturedPost(data[0]);
+      setPosts(data.slice(1));
+    } else {
+      setFeaturedPost(null);
+      setPosts(data);
+    }
+    
     setPagination(pag);
     setLoading(false);
-  }, [selectedCategory, activeSearch]);
+  }, [activeSearch]);
 
   useEffect(() => {
     loadPosts(1);
@@ -43,211 +66,285 @@ export const Blog: React.FC = () => {
     setActiveSearch('');
   };
 
-  const handleCategoryChange = (categoryId: number | undefined) => {
-    setSelectedCategory(categoryId);
-  };
-
   const handlePageChange = (page: number) => {
     loadPosts(page);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
-    <div className="min-h-screen bg-brand-dark flex flex-col">
-        {/* Header */}
-        <div className="relative bg-[#0A0A0A] border-b border-white/5 pt-44 pb-24 px-4 text-center overflow-hidden">
-             <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1519389950473-47ba0277781c?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center opacity-20 mix-blend-overlay"></div>
-             <div className="absolute inset-0 bg-gradient-to-t from-brand-dark via-brand-dark/80 to-brand-dark/40"></div>
-            
-            <div className="relative z-10">
-                <h1 className="text-4xl md:text-5xl font-black text-white mb-4 tracking-tight">Blog EasySplit</h1>
-                <p className="text-xl text-neutral-400 max-w-2xl mx-auto font-light">
-                    Dicas de CRO, Tráfego Pago e Otimização de Conversão para WordPress.
-                </p>
+    <div className="min-h-screen bg-brand-dark">
+      {/* Hero Header */}
+      <div className="bg-[#0a0a0a] border-b border-white/10 pt-32 pb-12">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="text-center max-w-3xl mx-auto">
+            <h1 className="text-4xl md:text-5xl font-black text-white mb-4">
+              Blog EasySplit
+            </h1>
+            <p className="text-xl text-neutral-400 mb-8">
+              Dicas de CRO, Tráfego Pago e Otimização de Conversão para WordPress.
+            </p>
 
-                {/* Search Bar */}
-                <form onSubmit={handleSearch} className="mt-8 max-w-xl mx-auto">
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Buscar artigos..."
-                      className="w-full px-6 py-4 pl-14 bg-white/5 border border-white/10 rounded-2xl text-white placeholder-neutral-500 focus:outline-none focus:border-brand-yellow/50 focus:bg-white/10 transition-all"
-                    />
-                    <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-neutral-500" size={20} />
-                    {activeSearch && (
-                      <button
-                        type="button"
-                        onClick={clearSearch}
-                        className="absolute right-20 top-1/2 -translate-y-1/2 p-1 hover:bg-white/10 rounded-full transition-colors"
-                      >
-                        <X size={18} className="text-neutral-400" />
-                      </button>
-                    )}
-                    <button
-                      type="submit"
-                      className="absolute right-3 top-1/2 -translate-y-1/2 px-4 py-2 bg-brand-yellow text-black font-bold rounded-xl hover:bg-brand-yellow/90 transition-colors text-sm"
-                    >
-                      Buscar
-                    </button>
-                  </div>
-                </form>
-            </div>
-        </div>
-
-        {/* Categories Filter */}
-        {categories.length > 0 && (
-          <div className="border-b border-white/5 bg-[#0A0A0A]/50 backdrop-blur-sm sticky top-20 z-30">
-            <div className="max-w-7xl mx-auto px-4 py-4">
-              <div className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-hide">
-                <button
-                  onClick={() => handleCategoryChange(undefined)}
-                  className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
-                    !selectedCategory 
-                      ? 'bg-brand-yellow text-black' 
-                      : 'bg-white/5 text-neutral-400 hover:bg-white/10 hover:text-white'
-                  }`}
-                >
-                  Todos
-                </button>
-                {categories.map((cat) => (
+            {/* Search Bar */}
+            <form onSubmit={handleSearch} className="max-w-xl mx-auto">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Buscar artigos..."
+                  className="w-full px-6 py-4 pl-14 bg-white/5 border border-white/10 rounded-2xl text-white placeholder-neutral-500 focus:outline-none focus:border-brand-purple focus:bg-white/10 transition-all"
+                />
+                <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-neutral-500" size={20} />
+                {activeSearch && (
                   <button
-                    key={cat.id}
-                    onClick={() => handleCategoryChange(cat.id)}
-                    className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
-                      selectedCategory === cat.id 
-                        ? 'bg-brand-yellow text-black' 
-                        : 'bg-white/5 text-neutral-400 hover:bg-white/10 hover:text-white'
-                    }`}
+                    type="button"
+                    onClick={clearSearch}
+                    className="absolute right-20 top-1/2 -translate-y-1/2 p-1 hover:bg-white/10 rounded-full transition-colors"
                   >
-                    {cat.name}
-                    <span className="ml-2 text-xs opacity-60">({cat.count})</span>
+                    <X size={18} className="text-neutral-400" />
                   </button>
-                ))}
+                )}
+                <button
+                  type="submit"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 px-5 py-2 bg-brand-purple text-white font-bold rounded-xl hover:bg-brand-purple/90 transition-colors text-sm"
+                >
+                  Buscar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      {/* Categories Bar */}
+      <div className="bg-[#0a0a0a] border-b border-white/10 sticky top-20 z-30">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex items-center gap-2 overflow-x-auto py-4 scrollbar-hide">
+            <Link
+              to="/blog"
+              className="px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap bg-brand-purple text-white"
+            >
+              Todos
+            </Link>
+            {categories.map((cat) => (
+              <Link
+                key={cat.id}
+                to={`/blog/categoria/${cat.slug}`}
+                className="px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap bg-white/5 text-neutral-300 hover:bg-white/10 transition-colors"
+              >
+                {cat.name}
+              </Link>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Active Search Notice */}
+      {activeSearch && (
+        <div className="max-w-7xl mx-auto px-4 pt-8">
+          <div className="flex items-center gap-4 text-sm bg-white/5 p-4 rounded-xl border border-white/10">
+            <span className="text-neutral-400">Resultados para:</span>
+            <span className="inline-flex items-center gap-2 px-3 py-1 bg-brand-purple/20 text-brand-purple font-medium rounded-lg">
+              "{activeSearch}"
+              <button onClick={clearSearch} className="hover:text-brand-purple/70">
+                <X size={14} />
+              </button>
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Content */}
+      <div className="max-w-7xl mx-auto px-4 py-12">
+        {loading ? (
+          <div className="space-y-8">
+            {/* Featured Skeleton */}
+            <div className="animate-pulse bg-[#111] rounded-2xl overflow-hidden border border-white/10">
+              <div className="grid md:grid-cols-2 gap-0">
+                <div className="bg-white/5 h-80"></div>
+                <div className="p-8">
+                  <div className="bg-white/5 h-4 w-24 rounded mb-4"></div>
+                  <div className="bg-white/5 h-8 w-3/4 rounded mb-4"></div>
+                  <div className="bg-white/5 h-4 w-full rounded mb-2"></div>
+                  <div className="bg-white/5 h-4 w-2/3 rounded"></div>
+                </div>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* Active Filters */}
-        {(activeSearch || selectedCategory) && (
-          <div className="max-w-7xl mx-auto px-4 pt-8">
-            <div className="flex items-center gap-4 text-sm">
-              <span className="text-neutral-500">Filtrando por:</span>
-              {activeSearch && (
-                <span className="inline-flex items-center gap-2 px-3 py-1 bg-brand-purple/20 text-brand-purple rounded-lg">
-                  "{activeSearch}"
-                  <button onClick={clearSearch} className="hover:text-white">
-                    <X size={14} />
-                  </button>
-                </span>
-              )}
-              {selectedCategory && (
-                <span className="inline-flex items-center gap-2 px-3 py-1 bg-brand-yellow/20 text-brand-yellow rounded-lg">
-                  {categories.find(c => c.id === selectedCategory)?.name}
-                  <button onClick={() => handleCategoryChange(undefined)} className="hover:text-white">
-                    <X size={14} />
-                  </button>
-                </span>
-              )}
+            
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {[1, 2, 3].map(n => (
+                <div key={n} className="animate-pulse bg-[#111] rounded-2xl overflow-hidden border border-white/10">
+                  <div className="bg-white/5 h-48"></div>
+                  <div className="p-6">
+                    <div className="bg-white/5 h-6 w-3/4 rounded mb-3"></div>
+                    <div className="bg-white/5 h-4 w-full rounded mb-2"></div>
+                    <div className="bg-white/5 h-4 w-1/2 rounded"></div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-        )}
-
-        {/* Content */}
-        <div className="max-w-7xl mx-auto px-4 py-12 flex-grow w-full relative z-10">
-            {loading ? (
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {[1, 2, 3, 4, 5, 6].map(n => (
-                        <div key={n} className="animate-pulse bg-[#111] rounded-2xl p-4 border border-white/5">
-                            <div className="bg-white/5 h-56 rounded-xl mb-6"></div>
-                            <div className="bg-white/5 h-6 w-3/4 rounded mb-3"></div>
-                            <div className="bg-white/5 h-4 w-full rounded mb-2"></div>
-                            <div className="bg-white/5 h-4 w-1/2 rounded"></div>
+        ) : posts.length === 0 && !featuredPost ? (
+          <div className="text-center py-20 bg-[#111] rounded-2xl border border-white/10">
+            <div className="text-6xl mb-4">📭</div>
+            <h3 className="text-xl font-bold text-white mb-2">Nenhum artigo encontrado</h3>
+            <p className="text-neutral-400 mb-6">
+              {activeSearch 
+                ? `Não encontramos resultados para "${activeSearch}"`
+                : 'Ainda não há artigos publicados'}
+            </p>
+            {activeSearch && (
+              <button
+                onClick={clearSearch}
+                className="text-brand-purple hover:underline font-medium"
+              >
+                Limpar busca
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="flex gap-8">
+            {/* Main Content */}
+            <div className="flex-1 min-w-0">
+              {/* Featured Post */}
+              {featuredPost && (
+                <article className="bg-[#111] rounded-2xl overflow-hidden border border-white/10 mb-12 group">
+                  <div className="grid md:grid-cols-2 gap-0">
+                    <Link to={`/blog/${featuredPost.slug}`} className="block overflow-hidden">
+                      <img 
+                        src={featuredPost._embedded?.['wp:featuredmedia']?.[0]?.source_url || `https://picsum.photos/seed/${featuredPost.id}/800/600`} 
+                        alt={stripHtml(featuredPost.title.rendered)}
+                        className="w-full h-full object-cover min-h-[320px] group-hover:scale-105 transition-transform duration-500"
+                        loading="eager"
+                      />
+                    </Link>
+                    
+                    <div className="p-8 flex flex-col justify-center">
+                      <div className="flex items-center gap-3 mb-4">
+                        <span className="px-3 py-1 bg-brand-yellow text-black text-xs font-bold uppercase tracking-wider rounded-full">
+                          Destaque
+                        </span>
+                        {featuredPost._embedded?.['wp:term']?.[0]?.[0] && (
+                          <Link 
+                            to={`/blog/categoria/${featuredPost._embedded['wp:term'][0][0].slug}`}
+                            className="text-brand-purple text-sm font-medium hover:underline"
+                          >
+                            {featuredPost._embedded['wp:term'][0][0].name}
+                          </Link>
+                        )}
+                      </div>
+                      
+                      <Link to={`/blog/${featuredPost.slug}`}>
+                        <h2 className="text-2xl md:text-3xl font-bold text-white mb-4 group-hover:text-brand-yellow transition-colors line-clamp-3" dangerouslySetInnerHTML={{ __html: featuredPost.title.rendered }} />
+                      </Link>
+                      
+                      <div className="text-neutral-400 mb-6 line-clamp-3" dangerouslySetInnerHTML={{ __html: featuredPost.excerpt.rendered }} />
+                      
+                      <div className="flex items-center gap-6 text-sm text-neutral-500 mb-6">
+                        <div className="flex items-center gap-2">
+                          <Calendar size={16} />
+                          {new Date(featuredPost.date).toLocaleDateString('pt-BR', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric'
+                          })}
                         </div>
-                    ))}
-                </div>
-            ) : posts.length === 0 ? (
-                <div className="text-center py-20">
-                  <div className="text-6xl mb-4">📭</div>
-                  <h3 className="text-xl font-bold text-white mb-2">Nenhum artigo encontrado</h3>
-                  <p className="text-neutral-400 mb-6">
-                    {activeSearch 
-                      ? `Não encontramos resultados para "${activeSearch}"`
-                      : 'Não há artigos nesta categoria ainda'}
-                  </p>
-                  <button
-                    onClick={() => {
-                      clearSearch();
-                      handleCategoryChange(undefined);
-                    }}
-                    className="text-brand-yellow hover:underline"
-                  >
-                    Ver todos os artigos
-                  </button>
-                </div>
-            ) : (
-                <>
-                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                      {posts.map((post) => (
-                          <article key={post.id} className="bg-[#111]/80 backdrop-blur-sm border border-white/5 rounded-2xl overflow-hidden hover:border-brand-yellow/30 transition-all hover:-translate-y-1 group flex flex-col h-full shadow-lg">
-                              {/* Image */}
-                              <div className="h-56 overflow-hidden bg-neutral-900 relative">
-                                  <div className="absolute inset-0 bg-brand-dark/20 z-10 group-hover:bg-transparent transition-colors"></div>
-                                  <img 
-                                      src={post._embedded?.['wp:featuredmedia']?.[0]?.source_url || `https://picsum.photos/seed/${post.id}/600/400?grayscale`} 
-                                      alt={post.title.rendered.replace(/<[^>]*>/g, '')}
-                                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                                  />
-                              </div>
-                              
-                              <div className="p-8 flex flex-col flex-grow relative">
-                                  <div className="absolute inset-0 bg-noise opacity-[0.03] pointer-events-none"></div>
+                        <div className="flex items-center gap-2">
+                          <Clock size={16} />
+                          {getReadingTime(featuredPost.content?.rendered || featuredPost.excerpt.rendered)} min
+                        </div>
+                      </div>
+                      
+                      <Link 
+                        to={`/blog/${featuredPost.slug}`} 
+                        className="inline-flex items-center gap-2 text-brand-purple font-bold hover:gap-3 transition-all"
+                      >
+                        Ler artigo completo <ArrowRight size={18} />
+                      </Link>
+                    </div>
+                  </div>
+                </article>
+              )}
 
-                                  <div className="relative z-10 flex flex-col h-full">
-                                      <div className="flex items-center gap-4 text-xs font-bold text-neutral-500 uppercase tracking-wider mb-4">
-                                          <div className="flex items-center gap-1.5">
-                                              <Calendar size={14} className="text-brand-yellow" />
-                                              {new Date(post.date).toLocaleDateString('pt-BR')}
-                                          </div>
-                                          <div className="flex items-center gap-1.5">
-                                              <User size={14} className="text-brand-purple" />
-                                              {post._embedded?.author?.[0]?.name || 'Admin'}
-                                          </div>
-                                      </div>
-                                      
-                                      <h2 className="text-2xl font-bold text-white mb-4 line-clamp-2 leading-tight group-hover:text-brand-yellow transition-colors" dangerouslySetInnerHTML={{ __html: post.title.rendered }} />
-                                      
-                                      <div className="text-neutral-400 text-sm leading-relaxed mb-6 line-clamp-3 flex-grow" dangerouslySetInnerHTML={{ __html: post.excerpt.rendered }} />
-                                      
-                                      <Link to={`/blog/${post.slug}`} className="inline-flex items-center gap-2 text-white font-bold text-sm bg-white/5 px-4 py-2 rounded-lg hover:bg-brand-yellow hover:text-black transition-all w-fit mt-auto">
-                                          Ler artigo <ArrowRight size={16} />
-                                      </Link>
-                                  </div>
+              {/* Posts Grid */}
+              {posts.length > 0 && (
+                <>
+                  <div className="grid md:grid-cols-2 gap-8">
+                    {posts.map((post) => (
+                      <article key={post.id} className="bg-[#111] rounded-2xl overflow-hidden border border-white/10 hover:border-white/20 transition-all group">
+                        <Link to={`/blog/${post.slug}`} className="block overflow-hidden">
+                          <img 
+                            src={post._embedded?.['wp:featuredmedia']?.[0]?.source_url || `https://picsum.photos/seed/${post.id}/600/400`} 
+                            alt={stripHtml(post.title.rendered)}
+                            className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-500"
+                            loading="lazy"
+                          />
+                        </Link>
+                        
+                        <div className="p-6">
+                          <div className="flex items-center gap-3 mb-3">
+                            {post._embedded?.['wp:term']?.[0]?.[0] && (
+                              <Link 
+                                to={`/blog/categoria/${post._embedded['wp:term'][0][0].slug}`}
+                                className="text-brand-purple text-xs font-bold uppercase tracking-wider hover:underline"
+                              >
+                                {post._embedded['wp:term'][0][0].name}
+                              </Link>
+                            )}
+                            <span className="text-neutral-600 text-xs">•</span>
+                            <span className="text-neutral-500 text-xs">
+                              {getReadingTime(post.content?.rendered || post.excerpt.rendered)} min de leitura
+                            </span>
+                          </div>
+                          
+                          <Link to={`/blog/${post.slug}`}>
+                            <h2 className="text-xl font-bold text-white mb-3 line-clamp-2 group-hover:text-brand-yellow transition-colors" dangerouslySetInnerHTML={{ __html: post.title.rendered }} />
+                          </Link>
+                          
+                          <div className="text-neutral-400 text-sm leading-relaxed mb-4 line-clamp-2" dangerouslySetInnerHTML={{ __html: post.excerpt.rendered }} />
+                          
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              {post._embedded?.author?.[0]?.avatar_urls?.['48'] && (
+                                <img 
+                                  src={post._embedded.author[0].avatar_urls['48']}
+                                  alt={post._embedded.author[0].name}
+                                  className="w-8 h-8 rounded-full"
+                                  loading="lazy"
+                                />
+                              )}
+                              <div>
+                                <p className="text-sm font-medium text-white">
+                                  {post._embedded?.author?.[0]?.name || 'Admin'}
+                                </p>
+                                <p className="text-xs text-neutral-500">
+                                  {new Date(post.date).toLocaleDateString('pt-BR')}
+                                </p>
                               </div>
-                          </article>
-                      ))}
+                            </div>
+                            
+                            <Link to={`/blog/${post.slug}`} className="text-brand-yellow hover:text-brand-yellow/80">
+                              <ArrowRight size={20} />
+                            </Link>
+                          </div>
+                        </div>
+                      </article>
+                    ))}
                   </div>
 
                   {/* Pagination */}
                   {pagination.totalPages > 1 && (
-                    <div className="flex items-center justify-center gap-2 mt-16">
+                    <div className="flex items-center justify-center gap-2 mt-12">
                       <button
                         onClick={() => handlePageChange(pagination.currentPage - 1)}
                         disabled={pagination.currentPage === 1}
-                        className="p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        className="p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                       >
-                        <ChevronLeft size={20} />
+                        <ChevronLeft size={20} className="text-neutral-300" />
                       </button>
                       
                       {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
-                        .filter(page => {
-                          // Show first, last, current, and pages near current
-                          return page === 1 || 
-                                 page === pagination.totalPages || 
-                                 Math.abs(page - pagination.currentPage) <= 1;
-                        })
+                        .filter(page => page === 1 || page === pagination.totalPages || Math.abs(page - pagination.currentPage) <= 1)
                         .map((page, index, arr) => (
                           <React.Fragment key={page}>
                             {index > 0 && arr[index - 1] !== page - 1 && (
@@ -257,8 +354,8 @@ export const Blog: React.FC = () => {
                               onClick={() => handlePageChange(page)}
                               className={`w-12 h-12 rounded-xl font-bold transition-all ${
                                 page === pagination.currentPage
-                                  ? 'bg-brand-yellow text-black'
-                                  : 'bg-white/5 text-white hover:bg-white/10'
+                                  ? 'bg-brand-purple text-white'
+                                  : 'bg-white/5 border border-white/10 text-neutral-300 hover:bg-white/10'
                               }`}
                             >
                               {page}
@@ -269,20 +366,25 @@ export const Blog: React.FC = () => {
                       <button
                         onClick={() => handlePageChange(pagination.currentPage + 1)}
                         disabled={pagination.currentPage === pagination.totalPages}
-                        className="p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        className="p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                       >
-                        <ChevronRight size={20} />
+                        <ChevronRight size={20} className="text-neutral-300" />
                       </button>
                     </div>
                   )}
 
-                  {/* Results info */}
-                  <div className="text-center mt-8 text-sm text-neutral-500">
-                    Mostrando {posts.length} de {pagination.total} artigos
+                  <div className="text-center mt-6 text-sm text-neutral-500">
+                    Mostrando {posts.length + (featuredPost ? 1 : 0)} de {pagination.total} artigos
                   </div>
                 </>
-            )}
-        </div>
+              )}
+            </div>
+
+            {/* Sidebar */}
+            <BlogSidebar categories={categories} />
+          </div>
+        )}
+      </div>
     </div>
   );
 };

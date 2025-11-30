@@ -1,0 +1,100 @@
+# =====================================================
+# CORREÇÃO DE CORS PARA O WORDPRESS
+# =====================================================
+# O erro "ERR_CONNECTION_RESET" ou "Failed to fetch" acontece
+# quando você tenta acessar a API do WordPress de um domínio diferente.
+# 
+# CENÁRIO 1: Você está acessando de localhost (desenvolvimento)
+# CENÁRIO 2: Você está acessando de um domínio diferente do WordPress
+#
+# SOLUÇÃO: Adicionar cabeçalhos CORS no WordPress
+# =====================================================
+
+# OPÇÃO A: Adicionar no .htaccess do WordPress (easysplit.com.br/wp/.htaccess)
+# -------------------------------------------------------------
+# Adicione estas linhas NO INÍCIO do arquivo .htaccess do WordPress:
+
+<IfModule mod_headers.c>
+    SetEnvIf Origin "http(s)?://(www\.)?(easysplit\.com\.br|localhost:5173|localhost:5174|localhost:3000)$" AccessControlAllowOrigin=$0
+    Header add Access-Control-Allow-Origin %{AccessControlAllowOrigin}e env=AccessControlAllowOrigin
+    Header add Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+    Header add Access-Control-Allow-Headers "Authorization, Content-Type, X-Requested-With"
+    Header add Access-Control-Allow-Credentials "true"
+</IfModule>
+
+# Se as regras acima não funcionarem, use esta versão mais permissiva:
+
+<IfModule mod_headers.c>
+    Header set Access-Control-Allow-Origin "*"
+    Header set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+    Header set Access-Control-Allow-Headers "Authorization, Content-Type, X-Requested-With"
+</IfModule>
+
+
+# =====================================================
+# OPÇÃO B: Adicionar no functions.php do tema WordPress
+# -------------------------------------------------------------
+# Adicione este código no arquivo functions.php do tema ativo:
+
+/*
+// Adicionar cabeçalhos CORS para a API REST
+add_action('rest_api_init', function() {
+    remove_filter('rest_pre_serve_request', 'rest_send_cors_headers');
+    add_filter('rest_pre_serve_request', function($value) {
+        $origin = get_http_origin();
+        $allowed_origins = array(
+            'https://easysplit.com.br',
+            'http://localhost:5173',
+            'http://localhost:5174',
+            'http://localhost:3000'
+        );
+        
+        if ($origin && in_array($origin, $allowed_origins)) {
+            header('Access-Control-Allow-Origin: ' . esc_url_raw($origin));
+        } else {
+            header('Access-Control-Allow-Origin: https://easysplit.com.br');
+        }
+        
+        header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+        header('Access-Control-Allow-Credentials: true');
+        header('Access-Control-Allow-Headers: Authorization, Content-Type, X-Requested-With');
+        
+        return $value;
+    });
+}, 15);
+
+// Tratar requisições OPTIONS (preflight)
+add_action('init', function() {
+    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+        header('Access-Control-Allow-Origin: *');
+        header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+        header('Access-Control-Allow-Headers: Authorization, Content-Type, X-Requested-With');
+        header('Access-Control-Max-Age: 86400');
+        status_header(200);
+        exit();
+    }
+});
+*/
+
+
+# =====================================================
+# OPÇÃO C: Plugin WordPress (mais fácil)
+# -------------------------------------------------------------
+# Instale o plugin "WP CORS" ou "Enable CORS" pela loja do WordPress
+# Configure para permitir o domínio easysplit.com.br
+
+
+# =====================================================
+# VERIFICAÇÃO IMPORTANTE
+# =====================================================
+# 
+# 1. Certifique-se de que está acessando o SITE CORRETO:
+#    - Para PRODUÇÃO: https://easysplit.com.br (o React)
+#    - Para DEV LOCAL: http://localhost:5173
+#
+# 2. A API do WordPress está em: https://easysplit.com.br/wp/wp-json/wp/v2
+#
+# 3. Se você já subiu o site para produção (easysplit.com.br),
+#    o login deve funcionar SEM problemas de CORS.
+#
+# 4. O erro só acontece quando você acessa de localhost para o WP remoto.
